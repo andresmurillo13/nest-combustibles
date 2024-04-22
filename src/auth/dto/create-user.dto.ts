@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsBoolean,
   IsArray,
+  IsNumber,
 } from 'class-validator';
 
 export class CreateUserDto {
@@ -30,6 +31,20 @@ export class CreateUserDto {
   @IsBoolean()
   isActive: boolean;
 
+  @IsString()
+  @MinLength(1)
+  @IsOptional()
+  cargo?: string;
+
+  @IsNumber()
+  @IsOptional()
+  telefono?: number;
+
+  @IsString()
+  @MinLength(1)
+  @IsOptional()
+  jefeInmediato?: string;
+
   @IsArray()
   roles: string[]
 
@@ -39,7 +54,6 @@ export class CreateUserDto {
   residencia?: string;
 
   @IsString()
-  @MinLength(1)
   @IsOptional()
   img?: string;
 

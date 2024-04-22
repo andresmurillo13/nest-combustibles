@@ -1,9 +1,11 @@
 import { BeforeInsert, BeforeUpdate, Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Equipment } from '../../equipment/entities'
+import { Application } from 'src/applications/entities/application.entity';
+import { Plan } from 'src/plans/entities/plan.entity';
 
 
 
-@Entity({name:'users'})
+@Entity({ name: 'users' })
 export class User {
 
   @PrimaryGeneratedColumn('uuid')
@@ -22,12 +24,23 @@ export class User {
   @Column('text')
   fullName: string;
 
+  @Column('text', { nullable: true })
+  cargo: string;
+
+  @Column('numeric', { nullable: true })
+  telefono: number;
+
+  @Column('text', { nullable: true })
+  jefeInmediato: string;
+
+
   @Column('bool', {
     default: true
   })
   isActive: boolean;
 
   @Column('text', {
+    nullable: false,
     array: true,
     default: ['user']
   })
@@ -41,11 +54,23 @@ export class User {
 
   @OneToMany(
     () => Equipment,
-    (equipment) => equipment.user
+    (equipment) => equipment.user,
   )
   equipment: Equipment;
 
 
+  @OneToMany(
+    () => Application,
+    (application) => application.user,
+  )
+  application: Application;
+
+
+  @OneToMany(
+    () => Plan,
+    (plan) => plan.user,
+  )
+  plan: Plan;
 
 
   @BeforeInsert()
@@ -57,5 +82,7 @@ export class User {
   checkFieldsBeforeUpdate() {
     this.checkFieldsBeforeInsert();
   }
+
+
 
 }

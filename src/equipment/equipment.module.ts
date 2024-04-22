@@ -5,16 +5,19 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Equipment } from './entities';
 import { AuthModule } from '../auth/auth.module';
 
+
 @Module({
   controllers: [EquipmentController],
   providers: [EquipmentService],
   imports: [
     TypeOrmModule.forFeature([Equipment]),
-    AuthModule
+    AuthModule,
+   
   ],
   exports: [
     EquipmentService,
-    TypeOrmModule
+    TypeOrmModule,
+
   ]
 
 })

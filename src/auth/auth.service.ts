@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -9,12 +9,15 @@ import { validate as isUUID } from 'uuid';
 import { User } from './entities/user.entity';
 import { LoginUserDto, CreateUserDto, UpdateUserDto } from './dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { PaginationDto } from 'src/common/dtos/pagination.dto';
 
 
 
 
 @Injectable()
 export class AuthService {
+
+  private readonly logger = new Logger('AuthService')
 
   constructor(
     @InjectRepository(User)
@@ -23,10 +26,36 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) { }
 
-  async getAllUsers() {
+  async findAll(paginationDto: PaginationDto) {
+
+    const { limit = 10, offset = 0 } = paginationDto;
+
     try {
-      const users = await this.userRepository.find();
-      return users.map(user => (user));
+
+      const employees = await this.userRepository.find({
+        take: limit,
+        skip: offset,
+        order: {
+          fullName: 'ASC'
+        }
+      });
+
+      const totalUsers = await this.userRepository.count();
+      const totalPages = Math.ceil(totalUsers / limit);
+      const currentPage = Math.floor(offset / limit) + 1;
+
+      const response = {
+        limit,
+        offset,
+        totalUsers,
+        totalPages,
+        currentPage,
+        employees
+
+      };
+
+      return response;
+
     } catch (error) {
       this.handleDBErrors(error);
     }
@@ -43,12 +72,14 @@ export class AuthService {
         password: bcrypt.hashSync(password, 10)
       });
 
+
+
       await this.userRepository.save(user)
       delete user.password;
 
       return {
         ...user,
-        token: this.getJwtToken({ id: user.id })
+        // token: this.getJwtToken({ id: user.id })
       };
 
 
@@ -60,16 +91,19 @@ export class AuthService {
 
   async update(id: string, updateUserDto: UpdateUserDto) {
 
-    const { email, ...toUpdate } = updateUserDto
+    const { email, password, ...toUpdate } = updateUserDto
 
 
-    const equipment = await this.userRepository.preload({ id, ...toUpdate })
-    if (!equipment) throw new NotFoundException(`Product with id: ${id} not found`);
+    const user = await this.userRepository.preload({ id, ...toUpdate })
+    if (!user) throw new NotFoundException(`Usuario con el: ${id} no encontrado`);
 
-    console.log(equipment)
+    if (password) {
+      user.password = bcrypt.hashSync(password, 10);
+    }
+
     try {
-      await this.userRepository.save(equipment);
-      return equipment;
+      await this.userRepository.save(user);
+      return user;
     } catch (error) {
       this.handleDBErrors(error);
     }
@@ -77,24 +111,23 @@ export class AuthService {
   }
   async findOne(id: string) {
 
-
     const user = await this.userRepository.findOneBy({ id });
-
-
     if (!user)
       throw new NotFoundException(`User with ${id} not found`);
-
     return user;
   }
 
 
-
   async delete(id: string) {
-    const equipment = await this.findOne(id);
-    await this.userRepository.remove(equipment);
-    return equipment;
-  }
+    try {
+      const user = await this.findOne(id);
+      await this.userRepository.update(id, { isActive: false });
+      return user;
+    } catch (error) {
+      this.handleDBErrors(error);
+    }
 
+  }
 
 
   async login(loginUserDto: LoginUserDto) {
@@ -103,11 +136,14 @@ export class AuthService {
 
     const user = await this.userRepository.findOne({
       where: { email },
-      select: { email: true, password: true, id: true, roles: true, fullName: true }
+      select: { email: true, password: true, id: true, roles: true, fullName: true, isActive: true }
     });
 
     if (!user)
       throw new UnauthorizedException('Credenciales no validas (email)');
+
+    if (!user.isActive )
+      throw new UnauthorizedException('Usuario inactivo, no puede iniciar sesión');
 
     if (!bcrypt.compareSync(password, user.password))
       throw new UnauthorizedException('Credenciales no validas (password)');
@@ -139,14 +175,12 @@ export class AuthService {
   private handleDBErrors(error: any): never {
 
 
-    if (error.code === '23505')
+    if (error.code === '23505' || error.code === '23503')
       throw new BadRequestException(error.detail);
 
-    console.log(error)
+    this.logger.error(error)
 
-    throw new InternalServerErrorException('Please check server logs');
-
+    throw new InternalServerErrorException(error);
   }
-
 
 }

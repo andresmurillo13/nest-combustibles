@@ -13,7 +13,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     constructor(
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
-
         configService: ConfigService
     ) {
 
@@ -26,15 +25,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     async validate(payload: JwtPayload): Promise<User> {
 
+        
+
         const { id } = payload;
 
         const user = await this.userRepository.findOneBy({ id });
+        
 
         if (!user)
-            throw new UnauthorizedException('Token not valid')
+            throw new UnauthorizedException('Token no valido')
 
         if (!user.isActive)
-            throw new UnauthorizedException('User is inactive, talk with an admin');
+            throw new UnauthorizedException('El usuario esta inactivo, hable con el administrador');
 
 
         return user;
